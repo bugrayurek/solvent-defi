@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Solvent — Built on Arc (Live)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.4/ethers.umd.min.js"></script>
+<style>
+  :root{
+    --paper:#EAE6D9; --paper-dim:#DED8C7; --ink:#182531; --ink-soft:#4B5A67;
+    --navy:#131F2C; --navy-2:#1B2D40; --rule:#C9C2AC;
+    --brass:#A9793B; --brass-soft:#C9A165; --burgundy:#8A3A3A;
+    --paper-on-navy:#EAE6D9; --focus:#2D6E7E;
+  }
+  [data-theme="dark"]{
+    --paper:#141F2A; --paper-dim:#1C2A35; --ink:#E7E2D3; --ink-soft:#93A4AF; --rule:#2B3D49;
+  }
+  body{transition:background .2s ease, color .2s ease;}
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{background:var(--paper);color:var(--ink);font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;}
+  .mono{font-family:'IBM Plex Mono',monospace;}
+  .display{font-family:'Fraunces',serif;}
+  a{color:inherit;} button{font-family:inherit;cursor:pointer;}
+  button:focus-visible, a:focus-visible, input:focus-visible{outline:2px solid var(--focus);outline-offset:2px;}
+
+  .hero{background:linear-gradient(180deg,var(--navy) 0%,var(--navy-2) 100%);color:var(--paper-on-navy);padding:56px 32px 40px;position:relative;overflow:hidden;}
+  .hero::after{content:"";position:absolute;left:0;right:0;bottom:0;height:6px;background:repeating-linear-gradient(90deg,var(--brass) 0 18px, transparent 18px 26px);opacity:.55;}
+  .topbar{max-width:1120px;margin:0 auto 40px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+  .brand{display:flex;align-items:baseline;gap:10px;}
+  .brand .mark{width:11px;height:11px;border-radius:2px;background:var(--brass-soft);transform:rotate(45deg);display:inline-block;}
+  .brand-name{font-family:'Fraunces',serif;font-size:20px;letter-spacing:.02em;font-weight:600;}
+  .brand-tag{font-size:11px;text-transform:uppercase;letter-spacing:.14em;color:#9FB0BE;margin-left:2px;}
+
+  .wallet-btn{background:var(--brass);color:var(--navy);border:none;padding:11px 18px;border-radius:3px;font-weight:600;font-size:13.5px;transition:transform .15s ease, background .15s ease;}
+  .wallet-btn:hover{background:var(--brass-soft);} .wallet-btn:active{transform:translateY(1px);}
+  .wallet-btn.connected{background:transparent;border:1px solid #3A4C5C;color:var(--paper-on-navy);}
+  .wallet-btn:disabled{opacity:.6;cursor:default;}
+
+  .network-warning{
+    max-width:1120px;margin:0 auto 20px;background:#3A2323;border:1px solid #6B3F3F;color:#EBC9C9;
+    padding:12px 16px;border-radius:3px;font-size:13px;display:none;
+  }
+  .network-warning.show{display:block;}
+  .network-warning button{background:var(--brass);color:var(--navy);border:none;padding:6px 12px;border-radius:2px;font-weight:600;font-size:12.5px;margin-left:8px;}
+
+  .hero-inner{max-width:1120px;margin:0 auto;}
+  .hero-eyebrow{font-size:11.5px;text-transform:uppercase;letter-spacing:.16em;color:var(--brass-soft);margin-bottom:14px;}
+  .hero h1{font-family:'Fraunces',serif;font-weight:500;font-size:clamp(28px,4.4vw,44px);line-height:1.1;margin:0 0 14px;max-width:760px;}
+  .hero p.lede{max-width:560px;color:#B7C3CC;font-size:15px;line-height:1.6;margin:0 0 20px;}
+  .contract-line{
+    font-family:'IBM Plex Mono',monospace;font-size:12px;color:#8AA0AC;
+    border-top:1px solid #33445660;padding-top:14px;
+  }
+  .contract-line a{color:var(--brass-soft);text-decoration:none;border-bottom:1px dotted #6b5636;}
+
+  main{max-width:1120px;margin:0 auto;padding:44px 32px 90px;display:grid;grid-template-columns:1fr 340px;gap:36px;}
+  @media (max-width:860px){ main{grid-template-columns:1fr;padding:32px 20px 70px;} .hero{padding:44px 20px 32px;} }
+
+  .section-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:16px;border-bottom:2px solid var(--ink);padding-bottom:10px;}
+  .section-head h2{font-family:'Fraunces',serif;font-weight:500;font-size:22px;margin:0;}
+  .section-head .hint{font-size:12.5px;color:var(--ink-soft);}
+
+  table.markets{width:100%;border-collapse:collapse;font-size:14px;}
+  table.markets th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft);font-weight:600;padding:0 10px 10px;border-bottom:1px solid var(--rule);}
+  table.markets td{padding:16px 10px;border-bottom:1px solid var(--rule);vertical-align:middle;}
+  table.markets tr:last-child td{border-bottom:none;}
+  .asset-cell{display:flex;align-items:center;gap:10px;}
+  .asset-dot{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;color:var(--paper-on-navy);}
+  .asset-dot.usdc{background:#2D6E7E;} .asset-dot.eurc{background:var(--brass);}
+  .asset-name{font-weight:600;} .asset-sub{font-size:11.5px;color:var(--ink-soft);}
+  .num{font-family:'IBM Plex Mono',monospace;}
+  .apy{color:#3C7A5A;font-weight:600;} .apr{color:var(--burgundy);font-weight:600;}
+  .util-bar{width:70px;height:5px;background:var(--paper-dim);border-radius:3px;overflow:hidden;margin-top:5px;}
+  .util-fill{height:100%;background:var(--brass);}
+  .row-actions{display:flex;gap:6px;flex-wrap:wrap;max-width:190px;}
+  .btn-sm{border:1px solid var(--ink);background:transparent;color:var(--ink);padding:7px 12px;font-size:12.5px;border-radius:2px;font-weight:600;}
+  .btn-sm:hover{background:var(--ink);color:var(--paper);}
+  .btn-sm.primary{background:var(--navy);color:var(--paper-on-navy);border-color:var(--navy);}
+  .btn-sm.primary:hover{background:var(--navy-2);}
+  .btn-sm:disabled{opacity:.5;cursor:default;}
+
+  .account-card{border:1px solid var(--ink);padding:20px;}
+  .health-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;}
+  .health-label{font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft);}
+  .health-val{font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;}
+  .health-val.safe{color:#3C7A5A;} .health-val.warn{color:var(--brass);} .health-val.danger{color:var(--burgundy);}
+  .health-bar{height:6px;background:var(--paper-dim);border-radius:3px;overflow:hidden;margin:10px 0 18px;}
+  .health-fill{height:100%;}
+  .ledger-line{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px dashed var(--rule);font-size:13.5px;}
+  .ledger-line:last-child{border-bottom:none;}
+  .ledger-line .l{color:var(--ink-soft);} .ledger-line .r{font-family:'IBM Plex Mono',monospace;font-weight:600;}
+  .empty-note{font-size:13px;color:var(--ink-soft);line-height:1.6;padding:6px 0 2px;}
+
+  .disclosure{max-width:1120px;margin:0 auto;padding:0 32px 60px;font-size:12px;color:var(--ink-soft);line-height:1.7;border-top:1px solid var(--rule);padding-top:22px;}
+  @media (max-width:860px){ .disclosure{padding-left:20px;padding-right:20px;} }
+  .disclosure b{color:var(--ink);}
+
+  .overlay{position:fixed;inset:0;background:rgba(19,31,44,.55);display:none;align-items:center;justify-content:center;z-index:50;padding:20px;}
+  .overlay.open{display:flex;}
+  .modal{background:var(--paper);border:1px solid var(--ink);max-width:380px;width:100%;padding:26px 26px 22px;}
+  .modal h3{font-family:'Fraunces',serif;font-weight:500;font-size:20px;margin:0 0 4px;}
+  .modal .sub{font-size:12.5px;color:var(--ink-soft);margin-bottom:18px;}
+  .modal label{font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft);display:block;margin-bottom:6px;}
+  .modal input{width:100%;padding:11px 12px;border:1px solid var(--ink);background:var(--paper);font-family:'IBM Plex Mono',monospace;font-size:15px;margin-bottom:6px;color:var(--ink);}
+  .modal .maxrow{display:flex;justify-content:space-between;font-size:11.5px;color:var(--ink-soft);margin-bottom:16px;}
+  .modal .maxrow button{background:none;border:none;color:var(--focus);text-decoration:underline;padding:0;font-size:11.5px;}
+  .modal-actions{display:flex;gap:10px;margin-top:18px;}
+  .modal-actions button{flex:1;padding:12px;border-radius:2px;font-weight:600;font-size:13.5px;}
+  .modal-actions .cancel{background:transparent;border:1px solid var(--ink);color:var(--ink);}
+  .modal-actions .confirm{background:var(--navy);border:1px solid var(--navy);color:var(--paper-on-navy);}
+  .modal-actions .confirm:disabled{opacity:.6;cursor:default;}
+  .modal-status{font-size:12.5px;margin-top:12px;min-height:32px;color:var(--ink-soft);line-height:1.5;}
+  .modal-status.error{color:var(--burgundy);}
+  .modal-status a{color:var(--focus);}
+
+  .toast-wrap{position:fixed;bottom:24px;right:24px;z-index:60;display:flex;flex-direction:column;gap:10px;}
+  .toast{background:var(--navy);color:var(--paper-on-navy);padding:13px 18px;border-radius:3px;font-size:13.5px;box-shadow:0 6px 20px rgba(0,0,0,.25);display:flex;align-items:center;gap:10px;max-width:340px;}
+  .toast .dot{width:7px;height:7px;border-radius:50%;background:#7FBF9B;flex-shrink:0;}
+  .toast.error .dot{background:#D98787;}
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="topbar">
+    <div class="brand">
+      <span class="mark"></span>
+      <span class="brand-name">Solvent</span>
+      <span class="brand-tag">Built on Arc · Live</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:14px;">
+      <div style="position:relative;">
+        <button id="notifBellBtn" title="Notification history" style="background:transparent;border:1px solid #3A4C5C;color:var(--paper-on-navy);width:34px;height:34px;border-radius:3px;font-size:14px;cursor:pointer;position:relative;">🔔<span id="notifBadge" style="display:none;position:absolute;top:-5px;right:-5px;background:var(--brass);color:var(--navy);font-size:9px;font-weight:700;border-radius:50%;width:15px;height:15px;line-height:15px;"></span></button>
+        <div id="notifPanel" style="display:none;position:absolute;right:0;top:42px;width:280px;background:var(--paper);border:1px solid var(--ink);z-index:100;max-height:320px;overflow-y:auto;">
+          <div id="notifList" style="padding:6px 0;"></div>
+        </div>
+      </div>
+      <button id="themeToggleBtn" title="Toggle light/dark mode" style="background:transparent;border:1px solid #3A4C5C;color:var(--paper-on-navy);width:34px;height:34px;border-radius:3px;font-size:15px;cursor:pointer;">🌙</button>
+      <a href="#" id="tourLink" style="color:#9FB0BE;font-size:13px;text-decoration:none;border-bottom:1px dotted #4A5C6A;" title="Take a guided tour">Take a Tour</a>
+      <button id="faucetBtn" title="Get free testnet USDC/EURC" style="background:transparent;border:none;color:#9FB0BE;font-size:13px;text-decoration:none;border-bottom:1px dotted #4A5C6A;cursor:pointer;padding:0;font-family:inherit;">Get Testnet Funds</button>
+      <a href="https://discord.com/invite/buildonarc" target="_blank" rel="noopener" style="color:#9FB0BE;font-size:13px;text-decoration:none;border-bottom:1px dotted #4A5C6A;" title="Arc's official Discord">Arc Discord</a>
+      <a href="https://x.com/arc" target="_blank" rel="noopener" style="color:#9FB0BE;font-size:13px;text-decoration:none;border-bottom:1px dotted #4A5C6A;" title="Arc's official X account">Arc on X</a>
+      <button class="wallet-btn" id="walletBtn">Connect Wallet</button>
+    </div>
+  </div>
+
+  <div class="hero-inner">
+    <div class="hero-eyebrow">Stablecoin money market — Arc Testnet</div>
+    <h1>Lend and borrow USDC and EURC, live on Arc.</h1>
+    <p class="lede">This page talks directly to the deployed SolventLendingPool contract on Arc Testnet through your wallet. Every action here is a real, signed testnet transaction.</p>
+    <div class="contract-line">
+      Pool contract: <a id="contractLink" href="#" target="_blank" rel="noopener">0x3833…BFD92</a>
+    </div>
+  </div>
+</div>
+
+<div class="network-warning" id="networkWarning">
+  Your wallet isn't on Arc Testnet (chain ID 5042002). <button id="switchNetworkBtn">Switch network</button>
+</div>
+
+<main>
+  <section class="panel">
+    <div class="section-head">
+      <h2>Markets</h2>
+      <span class="hint" id="marketsHint">Connect your wallet to load live rates</span>
+    </div>
+    <table class="markets">
+      <thead>
+        <tr><th>Asset</th><th>Total supplied</th><th>Total borrowed</th><th>Supply APY</th><th>Borrow APR</th><th></th></tr>
+      </thead>
+      <tbody id="marketsBody">
+        <tr><td colspan="6" class="empty-note">Connect your wallet to see live markets.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <aside>
+    <div class="section-head"><h2>Your account</h2></div>
+    <div class="account-card" id="accountCard">
+      <p class="empty-note">Connect a wallet to see your positions and health factor.</p>
+    </div>
+  </aside>
+</main>
+
+<section style="max-width:1120px;margin:0 auto 60px;padding:0 32px;">
+  <div class="section-head">
+    <h2>Rate simulator</h2>
+    <span class="hint">See how a hypothetical deposit or loan would move rates</span>
+  </div>
+  <div class="account-card" style="max-width:640px;">
+    <label style="font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft);display:block;margin-bottom:6px;">Asset</label>
+    <select id="simAsset" style="width:100%;padding:10px;border:1px solid var(--ink);background:var(--paper);color:var(--ink);font-family:'IBM Plex Mono',monospace;font-size:13px;margin-bottom:14px;">
+      <option value="USDC">USDC</option>
+      <option value="EURC">EURC</option>
+    </select>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;">
+      <div>
+        <label style="font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft);display:block;margin-bottom:6px;">Additional supply</label>
+        <input id="simSupply" class="mono" type="number" min="0" step="1" value="0" style="width:100%;padding:10px 12px;border:1px solid var(--ink);background:var(--paper);color:var(--ink);font-family:'IBM Plex Mono',monospace;font-size:15px;">
+      </div>
+      <div>
+        <label style="font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft);display:block;margin-bottom:6px;">Additional borrow</label>
+        <input id="simBorrow" class="mono" type="number" min="0" step="1" value="0" style="width:100%;padding:10px 12px;border:1px solid var(--ink);background:var(--paper);color:var(--ink);font-family:'IBM Plex Mono',monospace;font-size:15px;">
+      </div>
+    </div>
+    <div id="simResult" style="font-size:13.5px;color:var(--ink-soft);">Connect and let markets load to simulate rates.</div>
+  </div>
+</section>
+
+<section style="max-width:1120px;margin:0 auto 60px;padding:0 32px;">
+  <div class="section-head">
+    <h2>TVL history</h2>
+    <span class="hint">Recorded locally in this browser as you visit</span>
+  </div>
+  <div class="account-card">
+    <div id="tvlChartWrap" style="min-height:120px;display:flex;align-items:center;justify-content:center;">
+      <p class="empty-note">Not enough data points yet — check back after a couple of visits or actions.</p>
+    </div>
+  </div>
+</section>
+
+
+<div class="disclosure">
+  <b>Testnet only — real transactions, no real value.</b> This page signs and sends actual transactions to Arc Testnet using your connected wallet; make sure it's a testnet-only wallet. Solvent is an independent application <b>built on Arc</b>, Circle's Layer-1 network; it is not issued, operated, or endorsed by Circle.
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <h3 id="modalTitle">Supply USDC</h3>
+    <div class="sub" id="modalSub">Earn yield by supplying to the pool.</div>
+    <label for="modalInput" id="modalLabel">Amount</label>
+    <input id="modalInput" class="mono" type="number" min="0" step="0.000001" placeholder="0.00">
+    <div style="display:flex;gap:6px;margin-bottom:10px;">
+      <button class="btn-sm pct-btn" data-pct="25" style="flex:1;padding:6px 0;font-size:11.5px;">25%</button>
+      <button class="btn-sm pct-btn" data-pct="50" style="flex:1;padding:6px 0;font-size:11.5px;">50%</button>
+      <button class="btn-sm pct-btn" data-pct="75" style="flex:1;padding:6px 0;font-size:11.5px;">75%</button>
+      <button class="btn-sm pct-btn" data-pct="100" style="flex:1;padding:6px 0;font-size:11.5px;">Max</button>
+    </div>
+    <div class="maxrow"><span id="modalBalance">Balance: —</span></div>
+    <div class="modal-status" id="modalStatus"></div>
+    <div class="modal-actions">
+      <button class="cancel" id="modalCancel">Cancel</button>
+      <button class="confirm" id="modalConfirm">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="faucetOverlay">
+  <div class="modal" style="max-width:420px;">
+    <h3>Get testnet funds</h3>
+    <div class="sub">Circle's faucet requires a captcha, so it can't be triggered from this page directly — but your address is ready to paste in.</div>
+    <label style="font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft);display:block;margin-bottom:6px;">Your wallet address</label>
+    <div style="display:flex;gap:8px;margin-bottom:16px;">
+      <input id="faucetAddress" class="mono" type="text" readonly value="Connect a wallet first" style="flex:1;padding:10px 12px;border:1px solid var(--ink);background:var(--paper);color:var(--ink);font-family:'IBM Plex Mono',monospace;font-size:12.5px;">
+      <button class="btn-sm" id="faucetCopyBtn">Copy</button>
+    </div>
+    <div class="modal-actions">
+      <button class="cancel" id="faucetCancel">Close</button>
+      <button class="confirm" id="faucetOpenBtn">Open Circle Faucet ↗</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toastWrap"></div>
+
+<div class="overlay" id="tourOverlay">
+  <div class="modal" style="max-width:420px;">
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--brass);margin-bottom:8px;" id="tourStepLabel">Step 1 of 5</div>
+    <h3 id="tourTitle">Welcome to Solvent</h3>
+    <div class="sub" id="tourBody" style="margin-bottom:0;">A stablecoin money market, built on Arc.</div>
+    <div class="modal-actions">
+      <button class="cancel" id="tourSkip">Skip</button>
+      <button class="confirm" id="tourNext">Next</button>
+    </div>
+  </div>
+</div>
+
+
+<script>
+/* ------------------------------------------------------------------
+   Solvent — LIVE frontend, talks to the real
+   SolventLendingPool contract on Arc Testnet via ethers.js + the
+   browser wallet (window.ethereum).
+------------------------------------------------------------------- */
+
+// ---- Fill in / verify these ----
+const POOL_ADDRESS = "0x6C895585e22D792543A43069B4BADC8c3860720D"; // <-- your deployed pool
+const ARC_CHAIN_ID = 5042002;
+const ARC_CHAIN_ID_HEX = "0x" + ARC_CHAIN_ID.toString(16);
+const ARC_RPC = "https://rpc.testnet.arc.network";
+const EXPLORER = "https://testnet.arcscan.app";
+
+const ASSETS = {
+  USDC: { address: "0x3600000000000000000000000000000000000000", dot: "usdc", name: "USD Coin" },
+  EURC: { address: "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a", dot: "eurc", name: "Euro Coin" }
+};
+
+const POOL_ABI = [
+  "function getListedAssets() view returns (address[])",
+  "function markets(address) view returns (bool listed, uint256 totalSupplied, uint256 totalBorrowed, uint256 supplyIndex, uint256 borrowIndex, uint256 lastAccrualTime, uint16 collateralFactorBps, uint16 liquidationBonusBps, uint16 reserveFactorBps, uint256 baseRateBps, uint256 slopeBps, uint256 jumpSlopeBps, uint256 kinkBps)",
+  "function supplyRateBps(address asset) view returns (uint256)",
+  "function borrowRateBps(address asset) view returns (uint256)",
+  "function getUserSupply(address user, address asset) view returns (uint256)",
+  "function getUserBorrow(address user, address asset) view returns (uint256)",
+  "function healthFactor(address user) view returns (uint256)",
+  "function priceOf(address asset) view returns (uint256)",
+  "function supply(address asset, uint256 amount)",
+  "function withdraw(address asset, uint256 amount)",
+  "function borrow(address asset, uint256 amount)",
+  "function repay(address asset, uint256 amount)"
+];
+
+const ERC20_ABI = [
+  "function balanceOf(address) view returns (uint256)",
+  "function approve(address spender, uint256 amount) returns (bool)",
+  "function allowance(address owner, address spender) view returns (uint256)",
+  "function decimals() view returns (uint8)",
+  "function symbol() view returns (string)"
+];
+
+/* ---------------- Onboarding tour ---------------- */
+const TOUR_STEPS = [
+  { title: 'Welcome to Solvent', body: 'A stablecoin money market — supply USDC or EURC to earn yield, or post collateral and borrow. Built on Arc, Circle\'s fast, USDC-gas Layer-1.' },
+  { title: 'Markets', body: 'Each row is a market. "Supply" earns you yield; "Borrow" lets you take a loan against collateral you\'ve supplied elsewhere.' },
+  { title: 'Health factor', body: 'Shown in "Your account". Keep it above 1.0 — if it drops below that, your position can be liquidated to keep the pool solvent.' },
+  { title: 'Rate simulator', body: 'Curious how rates would move with more activity? The Rate simulator section lets you preview it before committing.' },
+  { title: 'You\'re set', body: 'Connect your wallet to get started, and use "Get Testnet Funds" if you need free USDC/EURC to try it out.' },
+];
+let tourStep = 0;
+
+function showTourStep(){
+  const s = TOUR_STEPS[tourStep];
+  document.getElementById('tourStepLabel').textContent = `Step ${tourStep + 1} of ${TOUR_STEPS.length}`;
+  document.getElementById('tourTitle').textContent = s.title;
+  document.getElementById('tourBody').textContent = s.body;
+  document.getElementById('tourNext').textContent = tourStep === TOUR_STEPS.length - 1 ? 'Finish' : 'Next';
+}
+function openTour(){
+  tourStep = 0;
+  showTourStep();
+  document.getElementById('tourOverlay').classList.add('open');
+}
+function closeTour(){
+  document.getElementById('tourOverlay').classList.remove('open');
+  localStorage.setItem('solvent-tour-seen', '1');
+}
+document.getElementById('tourNext')?.addEventListener('click', ()=>{
+  if(tourStep < TOUR_STEPS.length - 1){ tourStep++; showTourStep(); }
+  else { closeTour(); }
+});
+document.getElementById('tourSkip')?.addEventListener('click', closeTour);
+document.getElementById('tourLink')?.addEventListener('click', (e)=>{ e.preventDefault(); openTour(); });
+if(!localStorage.getItem('solvent-tour-seen')){
+  setTimeout(openTour, 600);
+}
+
+/* ---------------- Faucet request modal ---------------- */
+document.getElementById('faucetBtn')?.addEventListener('click', ()=>{
+  const input = document.getElementById('faucetAddress');
+  input.value = userAddress || 'Connect a wallet first';
+  document.getElementById('faucetOverlay').classList.add('open');
+});
+document.getElementById('faucetCancel')?.addEventListener('click', ()=>{
+  document.getElementById('faucetOverlay').classList.remove('open');
+});
+document.getElementById('faucetOverlay')?.addEventListener('click', (e)=>{
+  if(e.target.id === 'faucetOverlay') document.getElementById('faucetOverlay').classList.remove('open');
+});
+document.getElementById('faucetCopyBtn')?.addEventListener('click', async ()=>{
+  const input = document.getElementById('faucetAddress');
+  if(!userAddress){ showToast('Connect a wallet first', true); return; }
+  try{
+    await navigator.clipboard.writeText(input.value);
+    showToast('Address copied');
+  }catch(e){
+    input.select();
+    showToast('Select and copy manually');
+  }
+});
+document.getElementById('faucetOpenBtn')?.addEventListener('click', ()=>{
+  window.open('https://faucet.circle.com', '_blank', 'noopener');
+});
+
+function simulateRates(meta, extraSupply, extraBorrow){
+  const BPS = 10000;
+  const newSupplied = meta.totalSupplied + extraSupply;
+  const newBorrowed = meta.totalBorrowed + extraBorrow;
+  const utilBps = newSupplied > 0 ? Math.min(BPS, (newBorrowed / newSupplied) * BPS) : 0;
+
+  let borrowRateBps;
+  if(utilBps <= meta.kinkBps){
+    borrowRateBps = meta.baseRateBps + (meta.slopeBps * utilBps) / BPS;
+  } else {
+    const normalRate = meta.baseRateBps + (meta.slopeBps * meta.kinkBps) / BPS;
+    borrowRateBps = normalRate + (meta.jumpSlopeBps * (utilBps - meta.kinkBps)) / BPS;
+  }
+  const afterReserves = (borrowRateBps * (BPS - meta.reserveFactorBps)) / BPS;
+  const supplyRateBps = (afterReserves * utilBps) / BPS;
+
+  return { utilBps, supplyRateBps, borrowRateBps };
+}
+
+function updateRateSimulator(){
+  const out = document.getElementById('simResult');
+  if(!out) return;
+  const key = document.getElementById('simAsset').value;
+  const meta = marketMeta[key];
+  if(!meta){ out.textContent = 'Connect and let markets load to simulate rates.'; return; }
+
+  const extraSupply = Number(document.getElementById('simSupply').value) || 0;
+  const extraBorrow = Number(document.getElementById('simBorrow').value) || 0;
+
+  const current = simulateRates(meta, 0, 0);
+  const projected = simulateRates(meta, extraSupply, extraBorrow);
+
+  out.innerHTML = `
+    <div class="ledger-line"><span class="l">Utilization</span><span class="r mono">${(current.utilBps/100).toFixed(2)}% → ${(projected.utilBps/100).toFixed(2)}%</span></div>
+    <div class="ledger-line"><span class="l">Supply APY</span><span class="r mono">${fmtPct(current.supplyRateBps)} → ${fmtPct(projected.supplyRateBps)}</span></div>
+    <div class="ledger-line"><span class="l">Borrow APR</span><span class="r mono">${fmtPct(current.borrowRateBps)} → ${fmtPct(projected.borrowRateBps)}</span></div>
+  `;
+}
+document.getElementById('simAsset')?.addEventListener('change', updateRateSimulator);
+document.getElementById('simSupply')?.addEventListener('input', updateRateSimulator);
+document.getElementById('simBorrow')?.addEventListener('input', updateRateSimulator);
+
+function recordTvlSnapshot(tvl){
+  try{
+    const key = 'solvent-tvl-history';
+    const raw = localStorage.getItem(key);
+    const history = raw ? JSON.parse(raw) : [];
+    const last = history[history.length - 1];
+    // Avoid flooding the log — only record if it's been a while or value changed
+    if(!last || Date.now() - last.t > 20000 || last.v !== tvl){
+      history.push({ t: Date.now(), v: tvl });
+    }
+    const trimmed = history.slice(-40);
+    localStorage.setItem(key, JSON.stringify(trimmed));
+    renderTvlChart(trimmed);
+  }catch(e){ console.error('TVL history error', e); }
+}
+
+function renderTvlChart(history){
+  const wrap = document.getElementById('tvlChartWrap');
+  if(!wrap) return;
+  if(!history || history.length < 2){
+    wrap.innerHTML = `<p class="empty-note">Not enough data points yet — check back after a couple of visits or actions.</p>`;
+    return;
+  }
+  const w = 1000, h = 140, pad = 10;
+  const values = history.map(p => p.v);
+  const min = Math.min(...values), max = Math.max(...values);
+  const range = (max - min) || 1;
+  const points = history.map((p, i) => {
+    const x = pad + (i / (history.length - 1)) * (w - pad * 2);
+    const y = h - pad - ((p.v - min) / range) * (h - pad * 2);
+    return `${x},${y}`;
+  }).join(' ');
+  const last = values[values.length - 1];
+  const first = values[0];
+  const trendColor = last >= first ? '#3C7A5A' : 'var(--burgundy)';
+
+  wrap.innerHTML = `
+    <div style="width:100%;">
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:12.5px;color:var(--ink-soft);">
+        <span>Total value supplied, approx. USD</span>
+        <span class="mono" style="color:${trendColor};font-weight:600;">$${fmt(last)}</span>
+      </div>
+      <svg viewBox="0 0 ${w} ${h}" style="width:100%;height:120px;display:block;">
+        <polyline points="${points}" fill="none" stroke="${trendColor}" stroke-width="2.5" />
+      </svg>
+    </div>`;
+}
+
+function loadTvlChartFromStorage(){
+  try{
+    const raw = localStorage.getItem('solvent-tvl-history');
+    const history = raw ? JSON.parse(raw) : [];
+    renderTvlChart(history);
+  }catch(e){ /* ignore */ }
+}
+loadTvlChartFromStorage();
+(function initTheme(){
+  const saved = localStorage.getItem('solvent-theme');
+  const theme = saved || 'light';
+  document.documentElement.setAttribute('data-theme', theme);
+  window.addEventListener('DOMContentLoaded', () => {
+    const btn = document.getElementById('themeToggleBtn');
+    if(btn) btn.textContent = theme === 'dark' ? '☀️' : '🌙';
+    btn?.addEventListener('click', () => {
+      const current = document.documentElement.getAttribute('data-theme');
+      const next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('solvent-theme', next);
+      btn.textContent = next === 'dark' ? '☀️' : '🌙';
+    });
+  });
+})();
+
+let provider, signer, pool, userAddress;
+let decimalsCache = {};
+
+// Reads (markets, rates, balances) go through a dedicated RPC connection
+// instead of the wallet's injected provider, which is rate-limited for
+// bursts of parallel calls. Only signed transactions use the wallet.
+const readProvider = new ethers.JsonRpcProvider(ARC_RPC, undefined, { batchMaxCount: 1 });
+const readPool = new ethers.Contract(POOL_ADDRESS, POOL_ABI, readProvider);
+
+/// Retries a contract read a few times with backoff before giving up —
+/// smooths over transient RPC hiccups (429s, brief drops) without a second
+/// RPC endpoint to fail over to (Arc currently publishes one testnet RPC).
+async function readCall(contract, method, args = [], attempts = 3){
+  let lastErr;
+  for(let i = 0; i < attempts; i++){
+    try{
+      return await contract[method](...args, { gasLimit: 3000000 });
+    }catch(err){
+      lastErr = err;
+      if(i < attempts - 1) await new Promise(r => setTimeout(r, 500 * (i + 1)));
+    }
+  }
+  throw lastErr;
+}
+
+document.getElementById('contractLink').href = `${EXPLORER}/address/${POOL_ADDRESS}`;
+document.getElementById('contractLink').textContent = POOL_ADDRESS.slice(0,6) + '…' + POOL_ADDRESS.slice(-4);
+
+function fmt(n, d=2){ return Number(n).toLocaleString('en-US', {maximumFractionDigits:d}); }
+function fmtPct(bps){ return (Number(bps)/100).toFixed(2) + '%'; }
+
+let notifHistory = [];
+function showToast(msg, isError=false){
+  const wrap = document.getElementById('toastWrap');
+  const el = document.createElement('div');
+  el.className = 'toast' + (isError ? ' error' : '');
+  el.innerHTML = `<span class="dot"></span><span>${msg}</span>`;
+  wrap.appendChild(el);
+  setTimeout(()=>{ el.style.opacity='0'; el.style.transition='opacity .3s'; setTimeout(()=>el.remove(),300); }, 4200);
+
+  notifHistory.unshift({ msg, isError, time: Date.now() });
+  notifHistory = notifHistory.slice(0, 20);
+  renderNotifPanel();
+}
+
+function renderNotifPanel(){
+  const badge = document.getElementById('notifBadge');
+  const list = document.getElementById('notifList');
+  if(!badge || !list) return;
+  if(notifHistory.length){
+    badge.style.display = 'block';
+    badge.textContent = notifHistory.length > 9 ? '9+' : notifHistory.length;
+  } else {
+    badge.style.display = 'none';
+  }
+  if(!notifHistory.length){
+    list.innerHTML = `<div style="padding:16px;font-size:12.5px;color:var(--ink-soft);">No notifications yet.</div>`;
+    return;
+  }
+  list.innerHTML = notifHistory.map(n => {
+    const t = new Date(n.time).toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit'});
+    const color = n.isError ? 'var(--burgundy)' : 'var(--ink)';
+    return `<div style="padding:9px 14px;border-bottom:1px solid var(--rule);font-size:12.5px;color:${color};">
+      <div>${n.msg}</div>
+      <div style="font-size:10.5px;color:var(--ink-soft);margin-top:2px;">${t}</div>
+    </div>`;
+  }).join('');
+}
+
+document.addEventListener('DOMContentLoaded', ()=>{
+  const bellBtn = document.getElementById('notifBellBtn');
+  const panel = document.getElementById('notifPanel');
+  bellBtn?.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+    if(panel.style.display === 'block') renderNotifPanel();
+  });
+  document.addEventListener('click', (e)=>{
+    if(panel && !panel.contains(e.target) && !bellBtn.contains(e.target)){
+      panel.style.display = 'none';
+    }
+  });
+});
+
+async function decimalsOf(symbol){
+  if(decimalsCache[symbol] !== undefined) return decimalsCache[symbol];
+  const c = new ethers.Contract(ASSETS[symbol].address, ERC20_ABI, readProvider);
+  const d = await readCall(c, 'decimals', []);
+  decimalsCache[symbol] = Number(d);
+  return decimalsCache[symbol];
+}
+
+// Populated by renderMarkets, reused by the max-borrow calculator in
+// renderAccount so we don't re-fetch collateral factors / prices twice.
+let marketMeta = {};
+let lastMarketsSnapshot = {};
+
+async function checkNetwork(){
+  const net = await provider.getNetwork();
+  const ok = Number(net.chainId) === ARC_CHAIN_ID;
+  document.getElementById('networkWarning').classList.toggle('show', !ok);
+  return ok;
+}
+
+document.getElementById('switchNetworkBtn').addEventListener('click', async ()=>{
+  try{
+    await window.ethereum.request({ method:'wallet_switchEthereumChain', params:[{chainId: ARC_CHAIN_ID_HEX}] });
+  }catch(err){
+    if(err.code === 4902){
+      await window.ethereum.request({
+        method:'wallet_addEthereumChain',
+        params:[{
+          chainId: ARC_CHAIN_ID_HEX,
+          chainName: 'Arc Testnet',
+          nativeCurrency: { name:'USDC', symbol:'USDC', decimals:18 },
+          rpcUrls: [ARC_RPC],
+          blockExplorerUrls: [EXPLORER]
+        }]
+      });
+    } else {
+      showToast('Could not switch network: ' + (err.message||err), true);
+    }
+  }
+  await checkNetwork();
+  refreshAll();
+});
+
+document.getElementById('walletBtn').addEventListener('click', async ()=>{
+  if(!window.ethereum){
+    showToast('No wallet found. Install MetaMask or a similar browser wallet.', true);
+    return;
+  }
+  const btn = document.getElementById('walletBtn');
+  btn.disabled = true; btn.textContent = 'Connecting…';
+  try{
+    await window.ethereum.request({ method: 'eth_requestAccounts' });
+    provider = new ethers.BrowserProvider(window.ethereum);
+    signer = await provider.getSigner();
+    userAddress = await signer.getAddress();
+    pool = new ethers.Contract(POOL_ADDRESS, POOL_ABI, signer);
+
+    btn.textContent = userAddress.slice(0,6) + '…' + userAddress.slice(-4);
+    btn.classList.add('connected');
+
+    await checkNetwork();
+    await refreshAll();
+
+    window.ethereum.on('accountsChanged', ()=> window.location.reload());
+    window.ethereum.on('chainChanged', ()=> window.location.reload());
+  }catch(err){
+    showToast('Connection failed: ' + (err.message||err), true);
+  }finally{
+    btn.disabled = false;
+  }
+});
+
+async function refreshAll(){
+  if(!pool) return;
+  document.getElementById('marketsHint').textContent = 'Live from Arc Testnet';
+  await renderMarkets();
+  await renderAccount();
+}
+
+let marketsRenderId = 0;
+async function renderMarkets(){
+  const myRenderId = ++marketsRenderId;
+  document.getElementById('marketsHint').textContent = 'Live from Arc Testnet';
+  const body = document.getElementById('marketsBody');
+  body.innerHTML = '';
+
+  // Show a loading placeholder for every asset immediately, so the row
+  // exists right away instead of appearing empty until data arrives.
+  for(const key of Object.keys(ASSETS)){
+    const asset = ASSETS[key];
+    const trPlaceholder = document.createElement('tr');
+    trPlaceholder.id = `market-row-${key}`;
+    trPlaceholder.innerHTML = `
+      <td><div class="asset-cell">
+        <div class="asset-dot ${asset.dot}">${key.slice(0,2)}</div>
+        <div><div class="asset-name">${key}</div><div class="asset-sub">${asset.name}</div></div>
+      </div></td>
+      <td class="num" colspan="5" style="color:var(--ink-soft);">Loading…</td>`;
+    body.appendChild(trPlaceholder);
+  }
+
+  // Load each asset's row independently and in parallel — batching is
+  // disabled on the read provider (batchMaxCount: 1), so concurrent calls
+  // go out as separate requests rather than one fragile combined one.
+  async function loadRow(key){
+    const asset = ASSETS[key];
+    try{
+      const m = await readCall(readPool, 'markets', [asset.address]);
+      const dec = await decimalsOf(key);
+      const sRate = await readCall(readPool, 'supplyRateBps', [asset.address]);
+      const bRate = await readCall(readPool, 'borrowRateBps', [asset.address]);
+      const price = await readCall(readPool, 'priceOf', [asset.address]);
+      if(myRenderId !== marketsRenderId) return; // a newer render started — abandon this one
+
+      marketMeta[key] = {
+        collateralFactorBps: Number(m.collateralFactorBps), price, decimals: dec,
+        baseRateBps: Number(m.baseRateBps), slopeBps: Number(m.slopeBps),
+        jumpSlopeBps: Number(m.jumpSlopeBps), kinkBps: Number(m.kinkBps),
+        reserveFactorBps: Number(m.reserveFactorBps),
+        totalSupplied: Number(ethers.formatUnits(m.totalSupplied, dec)),
+        totalBorrowed: Number(ethers.formatUnits(m.totalBorrowed, dec))
+      };
+      lastMarketsSnapshot[key] = { totalSupplied: Number(ethers.formatUnits(m.totalSupplied, dec)), price: Number(ethers.formatUnits(price, 18)) };
+
+      const totalSupplied = Number(ethers.formatUnits(m.totalSupplied, dec));
+      const totalBorrowed = Number(ethers.formatUnits(m.totalBorrowed, dec));
+      const util = totalSupplied > 0 ? (totalBorrowed/totalSupplied)*100 : 0;
+
+      const priceFmt = '$' + Number(ethers.formatUnits(price, 18)).toFixed(2);
+      const tr = document.getElementById(`market-row-${key}`);
+      if(!tr) return;
+      tr.innerHTML = `
+        <td><div class="asset-cell">
+          <div class="asset-dot ${asset.dot}">${key.slice(0,2)}</div>
+          <div><div class="asset-name">${key}</div><div class="asset-sub">${asset.name} · ${priceFmt}</div></div>
+        </div></td>
+        <td class="num">${fmt(totalSupplied)}<div class="util-bar"><div class="util-fill" style="width:${Math.min(100,util)}%"></div></div></td>
+        <td class="num">${fmt(totalBorrowed)}</td>
+        <td class="num apy">${fmtPct(sRate)}</td>
+        <td class="num apr">${fmtPct(bRate)}</td>
+        <td><div class="row-actions">
+          <button class="btn-sm primary" data-action="supply" data-asset="${key}">Supply</button>
+          <button class="btn-sm" data-action="withdraw" data-asset="${key}">Withdraw</button>
+          <button class="btn-sm" data-action="borrow" data-asset="${key}">Borrow</button>
+          <button class="btn-sm" data-action="repay" data-asset="${key}">Repay</button>
+        </div></td>`;
+      tr.querySelectorAll('button[data-action]').forEach(btn=>{
+        btn.addEventListener('click', ()=> openModal(btn.dataset.action, btn.dataset.asset));
+      });
+    }catch(err){
+      console.error(err);
+      const tr = document.getElementById(`market-row-${key}`);
+      if(tr) tr.innerHTML = `<td colspan="6" class="empty-note">Couldn't load ${key} market — is the pool address correct and is this market listed?</td>`;
+    }
+  }
+
+  await Promise.all(Object.keys(ASSETS).map(loadRow));
+  updateRateSimulator();
+
+  const tvl = Object.values(lastMarketsSnapshot).reduce((sum, s) => sum + s.totalSupplied * s.price, 0);
+  if(Object.keys(lastMarketsSnapshot).length === Object.keys(ASSETS).length){
+    recordTvlSnapshot(tvl);
+  }
+}
+
+async function renderAccount(){
+  const card = document.getElementById('accountCard');
+  if(!userAddress){ card.innerHTML = `<p class="empty-note">Connect a wallet to see your positions and health factor.</p>`; return; }
+
+  try{
+    const hfRaw = await readCall(readPool, 'healthFactor', [userAddress]);
+    const isMax = hfRaw === ethers.MaxUint256;
+    const hf = isMax ? Infinity : Number(ethers.formatUnits(hfRaw, 18));
+    let hfClass = 'safe', hfText = isMax ? '∞' : hf.toFixed(2);
+    if(!isMax && hf < 1.5) hfClass = 'warn';
+    if(!isMax && hf < 1.1) hfClass = 'danger';
+    const barPct = isMax ? 100 : Math.min(100, (hf/3)*100);
+    const barColor = hfClass === 'safe' ? '#3C7A5A' : hfClass === 'warn' ? 'var(--brass)' : 'var(--burgundy)';
+
+    let lines = '';
+    let collateralValue = 0; // RAY-scaled (1e18) USD value, weighted by collateral factor
+    let debtValue = 0;
+    const perAsset = {};
+
+    for(const key of Object.keys(ASSETS)){
+      const dec = await decimalsOf(key);
+      const sup = await readCall(readPool, 'getUserSupply', [userAddress, ASSETS[key].address]);
+      const bor = await readCall(readPool, 'getUserBorrow', [userAddress, ASSETS[key].address]);
+      const supN = Number(ethers.formatUnits(sup, dec));
+      const borN = Number(ethers.formatUnits(bor, dec));
+      perAsset[key] = { supN, borN };
+      if(supN > 0) lines += `<div class="ledger-line"><span class="l">Supplied ${key}</span><span class="r">${fmt(supN,4)}</span></div>`;
+      if(borN > 0) lines += `<div class="ledger-line"><span class="l">Borrowed ${key}</span><span class="r">${fmt(borN,4)}</span></div>`;
+
+      const meta = marketMeta[key];
+      if(meta){
+        const supValue = Number(ethers.formatUnits(sup, dec)) * Number(ethers.formatUnits(meta.price, 18));
+        const borValue = Number(ethers.formatUnits(bor, dec)) * Number(ethers.formatUnits(meta.price, 18));
+        collateralValue += supValue * (meta.collateralFactorBps / 10000);
+        debtValue += borValue;
+      }
+    }
+    if(!lines) lines = `<div class="empty-note">No open positions yet. Supply an asset to start earning, or post collateral to borrow.</div>`;
+
+    // Max-borrow calculator: remaining USD borrowing power, converted into
+    // each asset at its current price. Floors at 0 (can't go negative).
+    const spareValue = Math.max(0, collateralValue - debtValue);
+    let borrowLines = '';
+    for(const key of Object.keys(ASSETS)){
+      const meta = marketMeta[key];
+      if(!meta) continue;
+      const price = Number(ethers.formatUnits(meta.price, 18));
+      const maxBorrow = price > 0 ? spareValue / price : 0;
+      borrowLines += `<div class="ledger-line"><span class="l">Available to borrow — ${key}</span><span class="r">${fmt(maxBorrow, 4)}</span></div>`;
+    }
+
+    const history = getTxHistory(userAddress).slice(0, 5);
+    let historyHtml = '';
+    if(history.length){
+      historyHtml = `<div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--rule);">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft);margin-bottom:8px;">Recent activity</div>
+        ${history.map(h => `<div class="ledger-line" style="font-size:12.5px;">
+          <span class="l">${h.action} ${h.amount} ${h.asset}</span>
+          <span class="r"><a href="${EXPLORER}/tx/${h.hash}" target="_blank" rel="noopener" style="color:var(--focus);text-decoration:none;">view ↗</a></span>
+        </div>`).join('')}
+      </div>`;
+    }
+
+    card.innerHTML = `
+      <div class="health-row"><span class="health-label">Health factor</span><span class="health-val ${hfClass} mono">${hfText}</span></div>
+      <div class="health-bar"><div class="health-fill" style="width:${barPct}%;background:${barColor}"></div></div>
+      ${lines}
+      <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--rule);">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft);margin-bottom:8px;">Borrowing power</div>
+        ${borrowLines}
+      </div>
+      ${historyHtml}`;
+  }catch(err){
+    console.error(err);
+    card.innerHTML = `<p class="empty-note">Couldn't load your account from the contract.</p>`;
+  }
+}
+
+/* ---------------- Transaction history (per-wallet, stored locally) ---------------- */
+function getTxHistory(address){
+  try{
+    const raw = localStorage.getItem('solvent-history-' + address.toLowerCase());
+    return raw ? JSON.parse(raw) : [];
+  }catch(e){ return []; }
+}
+function addTxHistory(address, entry){
+  try{
+    const list = getTxHistory(address);
+    list.unshift(entry);
+    localStorage.setItem('solvent-history-' + address.toLowerCase(), JSON.stringify(list.slice(0, 20)));
+  }catch(e){ console.error('Could not save tx history', e); }
+}
+
+/* ---------------- Modal / transactions ---------------- */
+let modalCtx = { action:'supply', asset:'USDC' };
+
+async function openModal(action, asset){
+  if(!signer){ showToast('Connect a wallet first'); return; }
+  modalCtx = { action, asset };
+  const dec = await decimalsOf(asset);
+
+  document.getElementById('modalTitle').textContent = {supply:`Supply ${asset}`, withdraw:`Withdraw ${asset}`, borrow:`Borrow ${asset}`, repay:`Repay ${asset}`}[action];
+  document.getElementById('modalSub').textContent = {
+    supply: `Earn yield by supplying ${asset} to the pool. Requires an approval transaction, then supply.`,
+    withdraw: `Withdraw your supplied ${asset}.`,
+    borrow: `Borrow ${asset} against your posted collateral.`,
+    repay: `Pay down your ${asset} debt. Requires an approval transaction, then repay.`
+  }[action];
+  document.getElementById('modalLabel').textContent = `Amount (${asset})`;
+  document.getElementById('modalInput').value = '';
+  const status = document.getElementById('modalStatus');
+  status.textContent = ''; status.classList.remove('error');
+
+  let balLabel = 'Wallet balance', balVal = 0;
+  try{
+    if(action === 'withdraw'){
+      balLabel = 'Supplied balance';
+      balVal = Number(ethers.formatUnits(await readCall(readPool, 'getUserSupply', [userAddress, ASSETS[asset].address]), dec));
+    } else if(action === 'repay'){
+      balLabel = 'Debt outstanding';
+      balVal = Number(ethers.formatUnits(await readCall(readPool, 'getUserBorrow', [userAddress, ASSETS[asset].address]), dec));
+    } else {
+      const erc20 = new ethers.Contract(ASSETS[asset].address, ERC20_ABI, readProvider);
+      balVal = Number(ethers.formatUnits(await readCall(erc20, 'balanceOf', [userAddress]), dec));
+    }
+  }catch(e){ console.error(e); }
+  document.getElementById('modalBalance').textContent = `${balLabel}: ${fmt(balVal,4)}`;
+  modalMaxBalance = balVal;
+
+  document.getElementById('overlay').classList.add('open');
+  document.getElementById('modalInput').focus();
+}
+function closeModal(){ document.getElementById('overlay').classList.remove('open'); }
+document.getElementById('modalCancel').addEventListener('click', closeModal);
+document.getElementById('overlay').addEventListener('click', (e)=>{ if(e.target.id === 'overlay') closeModal(); });
+let modalMaxBalance = 0;
+document.querySelectorAll('.pct-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const pct = Number(btn.dataset.pct) / 100;
+    const val = modalMaxBalance * pct;
+    document.getElementById('modalInput').value = pct === 1 ? modalMaxBalance : Number(val.toFixed(6));
+  });
+});
+
+document.getElementById('modalConfirm').addEventListener('click', async ()=>{
+  const { action, asset } = modalCtx;
+  const input = document.getElementById('modalInput');
+  const status = document.getElementById('modalStatus');
+  const confirmBtn = document.getElementById('modalConfirm');
+  const amountStr = input.value;
+
+  if(!amountStr || parseFloat(amountStr) <= 0){
+    status.textContent = 'Enter an amount greater than zero.'; status.classList.add('error'); return;
+  }
+
+  const okNetwork = await checkNetwork();
+  if(!okNetwork){ status.textContent = 'Switch your wallet to Arc Testnet first.'; status.classList.add('error'); return; }
+
+  confirmBtn.disabled = true;
+  try{
+    const dec = await decimalsOf(asset);
+    const amount = ethers.parseUnits(amountStr, dec);
+    const assetAddr = ASSETS[asset].address;
+    let txHash = '';
+
+    if(action === 'supply' || action === 'repay'){
+      const erc20Read = new ethers.Contract(assetAddr, ERC20_ABI, readProvider);
+      const erc20 = new ethers.Contract(assetAddr, ERC20_ABI, signer);
+      const allowance = await readCall(erc20Read, 'allowance', [userAddress, POOL_ADDRESS]);
+      if(allowance < amount){
+        status.textContent = 'Approving token spend — confirm in your wallet…';
+        const txA = await erc20.approve(POOL_ADDRESS, amount);
+        await txA.wait();
+      }
+      status.textContent = `Confirm the ${action} transaction in your wallet…`;
+      const tx = action === 'supply' ? await pool.supply(assetAddr, amount) : await pool.repay(assetAddr, amount);
+      txHash = tx.hash;
+      status.innerHTML = `Waiting for confirmation… <a href="${EXPLORER}/tx/${tx.hash}" target="_blank" rel="noopener">view on ArcScan</a>`;
+      const receipt = await tx.wait();
+      if(!receipt || receipt.status === 0){
+        throw new Error(`Transaction failed on-chain. Check it on ArcScan: ${EXPLORER}/tx/${tx.hash}`);
+      }
+    } else {
+      status.textContent = `Confirm the ${action} transaction in your wallet…`;
+      const tx = action === 'withdraw' ? await pool.withdraw(assetAddr, amount) : await pool.borrow(assetAddr, amount);
+      txHash = tx.hash;
+      status.innerHTML = `Waiting for confirmation… <a href="${EXPLORER}/tx/${tx.hash}" target="_blank" rel="noopener">view on ArcScan</a>`;
+      const receipt = await tx.wait();
+      if(!receipt || receipt.status === 0){
+        throw new Error(`Transaction failed on-chain. Check it on ArcScan: ${EXPLORER}/tx/${tx.hash}`);
+      }
+    }
+
+    addTxHistory(userAddress, { action: action[0].toUpperCase()+action.slice(1), amount: amountStr, asset, hash: txHash, time: Date.now() });
+    showToast(`${action[0].toUpperCase()+action.slice(1)} confirmed — ${amountStr} ${asset}`);
+    closeModal();
+    try{
+      await refreshAll();
+    }catch(refreshErr){
+      console.error('Post-transaction refresh failed (transaction itself succeeded):', refreshErr);
+    }
+  }catch(err){
+    console.error(err);
+    const msg = err.reason || err.shortMessage || err.message || String(err);
+    status.textContent = 'Failed: ' + msg;
+    status.classList.add('error');
+  }finally{
+    confirmBtn.disabled = false;
+  }
+});
+
+// Try to reconnect silently if the wallet is already authorized
+// Markets don't need a wallet — load them immediately using the read-only provider.
+renderMarkets();
+
+window.addEventListener('load', async ()=>{
+  if(window.ethereum && window.ethereum.selectedAddress){
+    document.getElementById('walletBtn').click();
+  }
+});
+
+</script>
+
+</body>
+</html>
