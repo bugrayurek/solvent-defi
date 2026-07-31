@@ -513,12 +513,12 @@ const readPool = new ethers.Contract(POOL_ADDRESS, POOL_ABI, readProvider);
 /// RPC endpoint to fail over to (Arc currently publishes one testnet RPC).
 let rpcQueue = Promise.resolve();
 function queueRpc(fn){
-  const run = rpcQueue.then(() => fn().finally(() => new Promise(r => setTimeout(r, 1500))));
+  const run = rpcQueue.then(() => fn().finally(() => new Promise(r => setTimeout(r, 2000))));
   rpcQueue = run.catch(() => {});
   return run;
 }
 
-async function readCall(contract, method, args = [], attempts = 6){
+async function readCall(contract, method, args = [], attempts = 10){
   return queueRpc(async () => {
     let lastErr;
     for(let i = 0; i < attempts; i++){
