@@ -511,7 +511,7 @@ const readPool = new ethers.Contract(POOL_ADDRESS, POOL_ABI, readProvider);
 /// Retries a contract read a few times with backoff before giving up —
 /// smooths over transient RPC hiccups (429s, brief drops) without a second
 /// RPC endpoint to fail over to (Arc currently publishes one testnet RPC).
-async function readCall(contract, method, args = [], attempts = 3){
+let rpcQueue = Promise.resolve();
   let lastErr;
   for(let i = 0; i < attempts; i++){
     try{
